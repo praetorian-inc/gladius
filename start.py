@@ -2,8 +2,9 @@ import time
 import tempfile
 import os
 import subprocess
+import argparse
 
-from watchdog.observers import Observer  
+from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler  
 from multiprocessing import Process
 from distutils.spawn import find_executable
@@ -12,6 +13,11 @@ from ConfigParser import SafeConfigParser
 
 config = SafeConfigParser()
 config.read('config.ini')
+
+verbosity = False
+
+responder_outfile_path = 'responder_out'
+responder_outfile_prefix = 'responder_hashcat'
 
 ################################################################################
 # Helper functions
@@ -83,7 +89,11 @@ def info(string):
     print color(string, color="blue", graphic='[-] ')
 
 def debug(string):
-    print color(string, color="pink", graphic='[.] ')
+    print color(string, color="purple", graphic='[.] ')
+
+def verbose(string):
+    if verbosity:
+        print color(string, color="cyan", graphic='[.] ')
 
 ################################################################################
 # Watchdog Handler classes
@@ -95,13 +105,18 @@ class ResponderHandler(PatternMatchingEventHandler):
     """
 
     patterns = ["*NTLM*.txt"]
+    
+    # Add to this list to add new hashcat crack types
+    # NOTE: If the type isn't NTLM, be sure to add a regex pattern to patterns
     types = [
+                ('ntlmv1', '5500'),
                 ('ntlmv2', '5600'),
             ]
 
     cache = set()
 
     def call_hashcat(self, hash_num, hashes):
+        """Run hashcat against a list of hashes"""
         hashcat = config.get('Responder', 'hashcat')
         ruleset = config.get('Responder', 'ruleset')
         wordlist = config.get('Responder', 'wordlist')
@@ -129,27 +144,21 @@ class ResponderHandler(PatternMatchingEventHandler):
 
         temp = tempfile.NamedTemporaryFile(mode='w', delete=False)
         for curr_hash in hashes:
-            info(curr_hash)
             temp.write(curr_hash + '\n')
 
         temp.close()
 
-        outfile = tempfile.NamedTemporaryFile(delete=False, prefix=config.get('Responder', 'outfile_prefix'), suffix="out")
+        outfile = tempfile.NamedTemporaryFile(delete=False, 
+                                              prefix=responder_outfile_prefix,
+                                              dir=responder_outfile_path, 
+                                              suffix="out")
         # Spawn hashcat
         command = [hashcat, '-m', hash_num, '-r', ruleset, '-o', outfile.name, temp.name, wordlist]
         warning(' '.join([str(x) for x in command]))
-        info("Hashcat command: {}".format([str(x) for x in command]))
-        subprocess.Popen(command)
+        verbose("Hashcat command: {}".format([str(x) for x in command]))
+        res = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def process(self, event):
-        """
-        event.event_type 
-            'modified' | 'created' | 'moved' | 'deleted'
-        event.is_directory
-            True | False
-        event.src_path
-            path/to/observed/file
-        """
         with open(event.src_path, 'r') as f:
             data = f.read().split('\n')
 
@@ -158,7 +167,7 @@ class ResponderHandler(PatternMatchingEventHandler):
 
         for line in data:
             if line in self.cache:
-                info("Currently in cache, skipping: {}".format(line))
+                verbose("Currently in cache, skipping: {}".format(line))
                 continue
 
             # Ignore blank lines
@@ -169,20 +178,20 @@ class ResponderHandler(PatternMatchingEventHandler):
                     hash_type = curr_type
 
                 if curr_hash.lower() in event.src_path.lower():
-                    success("New hash to crack: {}".format(line))
+                    hash_type = curr_type
+                    info("New hash to crack: {}".format(line))
                     new_hashes.append(line)
                     self.cache.add(line)
 
         if new_hashes and hash_type != 0:
             self.call_hashcat(hash_type, new_hashes)
 
-        debug("Deleting: {}".format(event.src_path))
-        os.remove(event.src_path)
-
     def on_modified(self, event):
+        verbose("File in responder path modified")
         self.process(event)
 
     def on_created(self, event):
+        verbose("File in responder path created")
         self.process(event)
 
 class CredsHandler(PatternMatchingEventHandler):
@@ -190,22 +199,10 @@ class CredsHandler(PatternMatchingEventHandler):
     Watch for new hash files and run hashcat against them
     """
 
-    # patterns = [config.get('Creds', 'file_pattern')]
-    patterns = ["*hash*"]
+    patterns = ["*{}*".format(responder_outfile_prefix)]
     cache = []
 
     def process(self, event):
-        """
-        event.event_type 
-            'modified' | 'created' | 'moved' | 'deleted'
-        event.is_directory
-            True | False
-        event.src_path
-            path/to/observed/file
-        """
-        # the file will be processed there
-        # print event.src_path, event.event_type  # print now only for degug
-
         with open(event.src_path, 'r') as f:
             data = f.read().split('\n')
 
@@ -219,29 +216,39 @@ class CredsHandler(PatternMatchingEventHandler):
                 line = line.split(':')
                 try:
                     cred = '{} {} {}'.format(line[2], line[0], line[-1])
+                    verbose("Found new cred: {}".format(cred))
                     if cred not in cache:
+                        success("New creds: {}".format(cred))
                         f.write(cred + '\n')
                 except IndexError:
                     pass
 
-        debug("Deleting: {}".format(event.src_path))
-        os.remove(event.src_path)
-
     def on_modified(self, event):
+        verbose("File in creds path modified")
         self.process(event)
 
     def on_created(self, event):
+        verbose("File in creds path created")
         self.process(event)
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-v', '--verbose', action="store_true", default=False, help="Increased output verbosity")
+    args = parser.parse_args()
+
+    verbosity = args.verbose
+
     handlers = [(ResponderHandler, config.get('Responder', 'log_path')),
-                (CredsHandler, config.get('Creds', 'infile_path'))]
+                (CredsHandler, responder_outfile_path)]
 
     observer = Observer()
     observers = []
 
     for handler, path in handlers:
-        info("Starting handler ({}) on path ({})".format(handler, path))
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        info("Watching ({}) for files with ({})".format(path, ', '.join(handler.patterns)))
         observer.schedule(handler(), path=path, recursive=False)
 
     observer.start()
