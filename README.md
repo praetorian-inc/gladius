@@ -28,6 +28,8 @@ optional arguments:
   -v, --verbose  Increased output verbosity
 ```
 
+### Start Responder and watch cracked credentials fly by..
+
 ### Output
 
 ![exmaple.png](example.png)
