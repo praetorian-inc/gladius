@@ -3,6 +3,7 @@ import tempfile
 import os
 import subprocess
 import argparse
+import struct
 
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler  
@@ -120,6 +121,11 @@ class ResponderHandler(PatternMatchingEventHandler):
         hashcat = config.get('Responder', 'hashcat')
         ruleset = config.get('Responder', 'ruleset')
         wordlist = config.get('Responder', 'wordlist')
+
+        eula = os.path.join(os.path.dirname(hashcat), 'eula.accepted')
+
+        with open(eula, 'w') as f:
+            f.write('1\0\0\0')
 
         if not os.path.exists(hashcat):
             hashcat = find_file(hashcat)
