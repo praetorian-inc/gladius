@@ -1,5 +1,11 @@
 ## Responder to Credentials
 
+### Install
+```
+pip install watchdog
+git clone https://git.praetorianlabs.com/thebarbershopper/gladius
+```
+
 ### Configuration
 First things first, have to set our configuration:
 ```
