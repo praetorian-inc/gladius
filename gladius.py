@@ -4,6 +4,7 @@ import os
 import subprocess
 import argparse
 import struct
+import md5
 
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler  
@@ -14,8 +15,6 @@ from ConfigParser import SafeConfigParser
 
 config = SafeConfigParser()
 config.read('config.ini')
-
-project_path = config.get("Project", 'project_path')
 
 verbosity = False
 
@@ -99,7 +98,56 @@ def verbose(string):
 # Watchdog Handler classes
 ################################################################################
 
-class ResponderHandler(PatternMatchingEventHandler):
+class GladiusHandler(PatternMatchingEventHandler):
+    def __init__(self):
+        self.cache = []
+        self.outpath = "{}_out".format(self.__class__.__name__.lower().replace("Handler", ""))
+        if not os.path.exists(self.outpath):
+            os.makedirs(self.outpath)
+        super(GladiusHandler, self).__init__()
+
+    def process(self, event):
+        pass
+
+    def get_outfile(self):
+        return tempfile.NamedTemporaryFile(delete=False, dir=self.outpath)
+
+    def on_modified(self, event):
+        # Ignore events that flag on the directory itself
+        if os.path.isdir(event.src_path):
+            return
+        with open(event.src_path, 'r') as f:
+            data = f.read()
+
+        md5sum = md5.new(data).hexdigest()
+        if md5sum in self.cache:
+            return
+
+        self.cache.append(md5sum)
+        verbose("File in {} path created".format(self.__class__.__name__))
+        self.process(event)
+
+    def on_created(self, event):
+        # Ignore events that flag on the directory itself
+        if os.path.isdir(event.src_path):
+            return
+
+        # In order to prevent duplication between created and modified
+        # Check the md5 of the contents of the file
+        # If cached file, ignore
+        with open(event.src_path, 'r') as f:
+            data = f.read()
+
+        md5sum = md5.new(data).hexdigest()
+        if md5sum in self.cache:
+            return
+
+        self.cache.append(md5sum)
+        verbose("File in {} path created".format(self.__class__.__name__))
+        self.process(event)
+
+
+class ResponderHandler(GladiusHandler):
     """
     Watch for new hash files and run hashcat against them
     """
@@ -153,14 +201,10 @@ class ResponderHandler(PatternMatchingEventHandler):
 
         temp.close()
 
-        out_path = os.path.join(project_path, config.get('Responder', 'outfile_path'))
-        if not os.path.exists(out_path):
-            os.makedirs(out_path)
+        if not os.path.exists(self.outpath):
+            os.makedirs(self.outpath)
         
-        outfile = tempfile.NamedTemporaryFile(delete=False, 
-                                              prefix=config.get("Responder", 'outfile_prefix'),
-                                              dir=out_path,
-                                              suffix="out")
+        outfile = self.get_outfile()
 
         # Spawn hashcat
         command = [hashcat, '-m', hash_num, '-r', ruleset, '-o', outfile.name, temp.name, wordlist]
@@ -176,13 +220,10 @@ class ResponderHandler(PatternMatchingEventHandler):
         hash_type = 0
 
         for line in data:
-            if line in self.cache:
-                verbose("Currently in cache, skipping: {}".format(line))
-                continue
-
             # Ignore blank lines
             if not line:
                 continue
+
             for curr_hash, curr_type in self.types:
                 if hash_type == 0:
                     hash_type = curr_type
@@ -191,65 +232,52 @@ class ResponderHandler(PatternMatchingEventHandler):
                     hash_type = curr_type
                     info("New hash to crack: {}".format(line))
                     new_hashes.append(line)
-                    self.cache.add(line)
 
         if new_hashes and hash_type != 0:
             self.call_hashcat(hash_type, new_hashes)
 
-    def on_modified(self, event):
-        verbose("File in responder path modified")
-        self.process(event)
-
-    def on_created(self, event):
-        verbose("File in responder path created")
-        self.process(event)
-
-class CredsHandler(PatternMatchingEventHandler):
+class CredsHandler(GladiusHandler):
     """
     Watch for new hash files and run hashcat against them
     """
-
-    patterns = ["*{}*".format(config.get("Responder", "outfile_prefix"))]
-    cache = []
+    patterns = ['*']
 
     def process(self, event):
         with open(event.src_path, 'r') as f:
             data = f.read().split('\n')
 
-        cache = []
-        if os.path.exists(config.get('Creds', 'outfile_path')):
-            with open(config.get('Creds', 'outfile_path'), 'r') as f:
-                cache = f.read().split('\n')
-
-        out_path = os.path.join(project_path, config.get('Creds', 'outfile_path'))
-        if not os.path.exists(out_path):
-            os.makedirs(out_path)
-
-        outfile = tempfile.NamedTemporaryFile(delete=False, 
-                                              prefix=config.get("Creds", 'outfile_prefix'),
-                                              dir=out_path,
-                                              suffix="out")
-
-        # with open(config.get('Creds', 'outfile_path'), 'a') as f:
+        outfile = self.get_outfile()
 
         for line in data:
             line = line.split(':')
             try:
                 cred = '{} {} {}'.format(line[2], line[0], line[-1])
-                verbose("Found new cred: {}".format(cred))
-                if cred not in cache:
-                    success("New creds: {}".format(cred))
-                    outfile.write(cred + '\n')
+                success("New creds: {}".format(cred))
+                outfile.write(cred + '\n')
             except IndexError:
                 pass
 
-    def on_modified(self, event):
-        verbose("File in creds path modified")
-        self.process(event)
+class PentestlyHandler(GladiusHandler):
+    """
+    Watch for new credentials and attempt to authenticate with them on the network
+    """
+    patterns = ['*']
 
-    def on_created(self, event):
-        verbose("File in creds path created")
-        self.process(event)
+    def process(self, event):
+        with open(event.src_path, 'r') as f:
+            data = f.read().split('\n')
+
+        outfile = self.get_outfile()
+
+        for line in data:
+            # Ignore blank lines
+            if not line:
+                continue
+            print line
+            line = line.split()
+            print "Domain: {}".format(line[0])
+            print "Username: {}".format(line[1])
+            print "Password: {}".format(line[2])
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -259,7 +287,8 @@ if __name__ == '__main__':
     verbosity = args.verbose
 
     handlers = [(ResponderHandler, config.get('Responder', 'watch_path')),
-                (CredsHandler, os.path.join(project_path, config.get('Responder', 'outfile_path')))]
+                (CredsHandler, ResponderHandler().outpath),
+                (PentestlyHandler, CredsHandler().outpath)]
 
     observer = Observer()
     observers = []
