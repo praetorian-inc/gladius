@@ -1,0 +1,12 @@
+workspaces add testtest
+load login
+set domain workgroup
+set username Administrator
+set password TH1Dxued
+set source 10.90.17.12
+run
+load ing/csv
+set filename /tmp/local_admins
+set table pentestly_creds
+run
+exit

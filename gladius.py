@@ -15,10 +15,9 @@ from ConfigParser import SafeConfigParser
 config = SafeConfigParser()
 config.read('config.ini')
 
-verbosity = False
+project_path = config.get("Project", 'project_path')
 
-responder_outfile_path = 'responder_out'
-responder_outfile_prefix = 'responder_hashcat'
+verbosity = False
 
 ################################################################################
 # Helper functions
@@ -154,10 +153,15 @@ class ResponderHandler(PatternMatchingEventHandler):
 
         temp.close()
 
+        out_path = os.path.join(project_path, config.get('Responder', 'outfile_path'))
+        if not os.path.exists(out_path):
+            os.makedirs(out_path)
+        
         outfile = tempfile.NamedTemporaryFile(delete=False, 
-                                              prefix=responder_outfile_prefix,
-                                              dir=responder_outfile_path, 
+                                              prefix=config.get("Responder", 'outfile_prefix'),
+                                              dir=out_path,
                                               suffix="out")
+
         # Spawn hashcat
         command = [hashcat, '-m', hash_num, '-r', ruleset, '-o', outfile.name, temp.name, wordlist]
         warning(' '.join([str(x) for x in command]))
@@ -205,7 +209,7 @@ class CredsHandler(PatternMatchingEventHandler):
     Watch for new hash files and run hashcat against them
     """
 
-    patterns = ["*{}*".format(responder_outfile_prefix)]
+    patterns = ["*{}*".format(config.get("Responder", "outfile_prefix"))]
     cache = []
 
     def process(self, event):
@@ -217,17 +221,27 @@ class CredsHandler(PatternMatchingEventHandler):
             with open(config.get('Creds', 'outfile_path'), 'r') as f:
                 cache = f.read().split('\n')
 
-        with open(config.get('Creds', 'outfile_path'), 'a') as f:
-            for line in data:
-                line = line.split(':')
-                try:
-                    cred = '{} {} {}'.format(line[2], line[0], line[-1])
-                    verbose("Found new cred: {}".format(cred))
-                    if cred not in cache:
-                        success("New creds: {}".format(cred))
-                        f.write(cred + '\n')
-                except IndexError:
-                    pass
+        out_path = os.path.join(project_path, config.get('Creds', 'outfile_path'))
+        if not os.path.exists(out_path):
+            os.makedirs(out_path)
+
+        outfile = tempfile.NamedTemporaryFile(delete=False, 
+                                              prefix=config.get("Creds", 'outfile_prefix'),
+                                              dir=out_path,
+                                              suffix="out")
+
+        # with open(config.get('Creds', 'outfile_path'), 'a') as f:
+
+        for line in data:
+            line = line.split(':')
+            try:
+                cred = '{} {} {}'.format(line[2], line[0], line[-1])
+                verbose("Found new cred: {}".format(cred))
+                if cred not in cache:
+                    success("New creds: {}".format(cred))
+                    outfile.write(cred + '\n')
+            except IndexError:
+                pass
 
     def on_modified(self, event):
         verbose("File in creds path modified")
@@ -244,8 +258,8 @@ if __name__ == '__main__':
 
     verbosity = args.verbose
 
-    handlers = [(ResponderHandler, config.get('Responder', 'log_path')),
-                (CredsHandler, responder_outfile_path)]
+    handlers = [(ResponderHandler, config.get('Responder', 'watch_path')),
+                (CredsHandler, os.path.join(project_path, config.get('Responder', 'outfile_path')))]
 
     observer = Observer()
     observers = []

@@ -1,12 +1,18 @@
 ## Responder to Credentials
 
+### Install
+```
+pip install watchdog
+git clone https://git.praetorianlabs.com/thebarbershopper/gladius/blob/master/gladius.py
+```
+
 ### Configuration
 First things first, have to set our configuration:
 ```
 [Responder]
 hashcat = /root/tools/hashcat/hashcat-cli64.bin # Path to hashcat binary
 wordlist = /root/tools/hashcat/rockyou.txt # Path to wordlist for hashcat
-ruleset = /root/tools/esymode.rule # Path to ruleset for hashcat 
+ruleset = /root/tools/hob064.rule # Path to ruleset for hashcat 
 log_path = /opt/responder/logs # Path to monitor for new Responder hashes
 
 [Creds]
