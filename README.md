@@ -117,3 +117,9 @@ run
 #### Admin
 
 Watches for output from Pentestly and parses the found credentials for `Local Admin` and new credentials from `Mimikatz`
+
+#### Run Tests
+
+```
+python -m unittest discover test
+```
