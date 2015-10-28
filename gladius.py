@@ -23,7 +23,6 @@ project_dir = config.get("Project", "project_path")
 verbosity = False
 
 Cred = namedtuple('Cred', ['domain', 'username', 'password'])
-MimikatzCred = namedtuple('MimikatzCred', ['host', 'access', 'username', 'password', 'domain'])
 
 ################################################################################
 # Helper functions
@@ -281,7 +280,7 @@ class PentestlyHandler(GladiusHandler):
     patterns = ['*']
     template = """workspaces add gladius
 load nmap
-set filename /tmp/gladius.xml
+set filename {}
 run
 load login
 set domain {}
@@ -299,11 +298,6 @@ set table pentestly_creds
 run
 """
 
-    """
-    back
-    workspaces delete gladius
-    exit
-    """
 
     def process(self, event):
         with open(event.src_path, 'r') as f:
@@ -319,17 +313,14 @@ run
 
             cred = Cred(*line.split())
 
-            """
-            line[0] = 'WORKGROUP'
-            line[1] = 'Administrator'
-            line[2] = 'BadAdminPassword'
-            """
+            cred = Cred('WORKGROUP', 'Administrator', 'BadAdminPassword')
 
             junk = self.get_junkfile()
 
             # Write Pentestly resource script to junkfile
             lhost = config.get("Mimikatz", "lhost")
-            curr_template = self.template.format(cred.domain, cred.username, cred.password,
+            curr_template = self.template.format(config.get('Pentestly', 'nmap'), cred.domain,
+                                                 cred.username, cred.password,
                                                  lhost, self.get_outfile().name)
             verbose(curr_template)
             junk.write(curr_template)

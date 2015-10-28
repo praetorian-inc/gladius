@@ -9,14 +9,23 @@ git clone https://git.praetorianlabs.com/thebarbershopper/gladius
 ### Configuration
 First things first, have to set our configuration:
 ```
-[Responder]
-hashcat = /root/tools/hashcat/hashcat-cli64.bin # Path to hashcat binary
-wordlist = /root/tools/hashcat/rockyou.txt # Path to wordlist for hashcat
-ruleset = /root/tools/hob064.rule # Path to ruleset for hashcat 
-log_path = /opt/responder/logs # Path to monitor for new Responder hashes
+[Project]
+project_path = testing2
 
-[Creds]
-outfile_path = /root/creds # File to write cracked credentials
+[Responder]
+hashcat = /root/tools/hashcat/hashcat-cli64.bin
+wordlist = /root/tools/hashcat/rockyou.txt
+ruleset = /root/tools/hob064.rule
+watch_path = /opt/responder/logs
+
+[Pentestly]
+nmap = /tmp/gladius.xml
+
+[Recon-ng]
+path = /opt/recon-ng/recon-ng
+
+[Mimikatz]
+lhost = 10.10.11.156
 ```
 
 ### Start
