@@ -131,6 +131,7 @@ class GladiusHandler(PatternMatchingEventHandler):
         # Ignore events that flag on the directory itself
         if os.path.isdir(event.src_path):
             return
+
         with open(event.src_path, 'r') as f:
             data = f.read()
 
