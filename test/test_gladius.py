@@ -1,6 +1,5 @@
 from collections import namedtuple
-from mock import patch
-from mock import Mock
+from mock import Mock, patch, mock_open
 import sys
 import unittest
 
@@ -97,10 +96,10 @@ class TestGladius(unittest.TestCase):
         Directory = namedtuple("Directory", ['src_path'])
         src_path = 'test_src_path'
         my_dir = Directory(src_path)
-        self.handler.on_created(my_dir)
+        result = self.handler.on_created(my_dir)
 
         mock_open.return_value = mock_file
-        self.assertEqual(self.handler.cache, ['fakehash'])
+        self.assertEqual(result, None)
 
     @patch('gladius.md5')
     @patch('gladius.open')
@@ -130,6 +129,29 @@ class TestGladius(unittest.TestCase):
         event = 'testevent'
         self.handler.on_modified(event)
         self.handler.on_created.assert_called_once_with(event)
+
+    @patch('gladius.open')
+    def test_gladius_get_lines(self, mock_open):
+        Event = namedtuple("Event", ['src_path'])
+        src_path = 'test_src_path'
+        event = Event(src_path)
+
+        self.handler.get_lines(event)
+
+        mock_open.assert_called_with(event.src_path, 'r')
+
+    def test_gladius_get_lines_correct_return(self):
+        Event = namedtuple("Event", ['src_path'])
+        src_path = 'test_src_path'
+        event = Event(src_path)
+
+        file_contents = '\n'.join(['a', 'b', 'c'])
+        
+        m = mock_open(read_data=file_contents)
+        with patch('gladius.open', m, create=True):
+            result = self.handler.get_lines(event)
+
+        self.assertEqual(result, ['a', 'b', 'c'])
 
 if __name__ == '__main__':
     unittest.main()

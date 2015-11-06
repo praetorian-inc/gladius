@@ -123,3 +123,8 @@ Watches for output from Pentestly and parses the found credentials for `Local Ad
 ```
 python -m unittest discover test
 ```
+
+```
+pip install coverage
+coverage run -m unittest discover test
+```

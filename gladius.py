@@ -29,10 +29,12 @@ Cred = namedtuple('Cred', ['domain', 'username', 'password'])
 ################################################################################
 
 def find_file(filename):
+    """Find a particular file on disk"""
     for root, dirs, files in os.walk('/'):
         for file in files:
             if file == filename:
                 return os.path.join(root, file)
+
 
 def color(string, color='', graphic=''):
     """
@@ -127,21 +129,14 @@ class GladiusHandler(PatternMatchingEventHandler):
     def get_junkfile(self, suffix=''):
         return tempfile.NamedTemporaryFile(delete=False, dir=self.junkpath, suffix=suffix)
 
-    def on_modified(self, event):
-        # Ignore events that flag on the directory itself
-        if os.path.isdir(event.src_path):
-            return
-
+    def get_lines(self, event):
+        """Given an event, return the lines of the event file"""
         with open(event.src_path, 'r') as f:
-            data = f.read()
+            data = f.read().split('\n')
+        return data
 
-        md5sum = md5.new(data).hexdigest()
-        if md5sum in self.cache:
-            return
-
-        self.cache.append(md5sum)
-        verbose("File in {} path created".format(self.__class__.__name__))
-        self.process(event)
+    def on_modified(self, event):
+        self.on_created(event)
 
     def on_created(self, event):
         # Ignore events that flag on the directory itself
@@ -159,7 +154,7 @@ class GladiusHandler(PatternMatchingEventHandler):
             return
 
         self.cache.append(md5sum)
-        verbose("File in {} path created".format(self.__class__.__name__))
+        verbose("New data in {} path".format(self.__class__.__name__))
         self.process(event)
 
 
@@ -228,8 +223,7 @@ class ResponderHandler(GladiusHandler):
         res = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def process(self, event):
-        with open(event.src_path, 'r') as f:
-            data = f.read().split('\n')
+        data = self.get_lines(event)
 
         new_hashes = []
         hash_type = 0
@@ -373,9 +367,9 @@ if __name__ == '__main__':
     verbosity = args.verbose
 
     handlers = [(ResponderHandler, config.get('Responder', 'watch_path')),
-                (CredsHandler, ResponderHandler().outpath),
-                (PentestlyHandler, CredsHandler().outpath),
-                (AdminHandler, PentestlyHandler().outpath)]
+                (CredsHandler, ResponderHandler().outpath)]
+                # (PentestlyHandler, CredsHandler().outpath),
+                # (AdminHandler, PentestlyHandler().outpath)]
 
     observer = Observer()
     observers = []
