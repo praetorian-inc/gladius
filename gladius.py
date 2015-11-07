@@ -107,6 +107,14 @@ def verbose(string):
 ################################################################################
 
 class GladiusHandler(PatternMatchingEventHandler):
+    """
+    Base Class for Handlers in Gladius
+
+    Attributes:
+        output: Directory to write temporary files specific to the handler
+        junkpath: Directory to write junk files for intermediate use
+    """
+
     def __init__(self):
         self.cache = []
         self.outpath = os.path.join(project_dir, "{}_out".format(self.__class__.__name__.lower()))
@@ -175,46 +183,47 @@ class ResponderHandler(GladiusHandler):
 
     cache = set()
 
-    def call_hashcat(self, hash_num, hashes):
-        """Run hashcat against a list of hashes"""
+    def accept_eula(self, hashcat):
+        """Ensure we sign the EULA so that we don't have spinning hashcats"""
+
+        eula = os.path.join(os.path.dirname(hashcat), 'eula.accepted')
+        with open(eula, 'w') as f:
+            f.write('1\0\0\0')
+
+    def get_configs(self):
         hashcat = config.get('Responder', 'hashcat')
         ruleset = config.get('Responder', 'ruleset')
         wordlist = config.get('Responder', 'wordlist')
 
-        eula = os.path.join(os.path.dirname(hashcat), 'eula.accepted')
-
-        with open(eula, 'w') as f:
-            f.write('1\0\0\0')
-
-        if not os.path.exists(hashcat):
-            hashcat = find_file(hashcat)
-
-        if not os.path.exists(ruleset):
-            ruleset = find_file(ruleset)
-
-        if not os.path.exists(wordlist):
-            wordlist = find_file(wordlist)
-
         if not hashcat:
-            error("Could not find hashcat: {}".format(hashcat))
+            error("Please set hashcat in the config.ini")
             return
 
         if not ruleset:
-            error("Could not find ruleset: {}".format(ruleset))
+            error("Please set ruleset in the config.ini")
             return
 
         if not wordlist:
-            error("Could not find wordlist: {}".format(wordlist))
+            error("Please set wordlist in the config.ini")
             return
+
+        return hashcat, ruleset, wordlist
+
+    def call_hashcat(self, hash_num, hashes):
+        """Run hashcat against a list of hashes"""
+
+        try:
+            hashcat, ruleset, wordlist = self.get_configs()
+        except ValueError:
+            return
+
+        self.accept_eula(hashcat)
 
         temp = self.get_junkfile()
         for curr_hash in hashes:
             temp.write(curr_hash + '\n')
         temp.close()
 
-        if not os.path.exists(self.outpath):
-            os.makedirs(self.outpath)
-        
         outfile = self.get_outfile()
 
         # Spawn hashcat
