@@ -49,33 +49,16 @@ optional arguments:
 
 ![exmaple.png](example.png)
 
-### Example module
-
-```
-class CredsHandler(GladiusHandler):
-
-    patterns = ['*']
-
-    def process(self, event):
-        with open(event.src_path, 'r') as f:
-            data = f.read().split('\n')
-
-        # Perform work on data
-```
-
-
-Add yourself to the handlers list
-```
-handlers = [(ResponderHandler, config.get('Responder', 'watch_path')),
-            (CredsHandler, ResponderHandler().outpath),
-            (PentestlyHandler, CredsHandler().outpath)]
-```
-
 ### Workings
 
 #### Responder
 
 Watches responder log for `*NTLM*txt` files. For each file found, parses output, creates a temp file containing the new hashes, and passes this to hashcat with the correct hash type
+
+```
+To watch for NTLM hashes from hashdump, simply create a file with NTLM hashes from hashdump and drop a file with `hashdump` in its name in the Responder `watch_path` directory.
+Note: Will have to manually examine output in `./PROJECT/responderhander_out/*` to check for results from `hashdump` cracking.
+```
 
 #### Credentials
 
@@ -127,4 +110,26 @@ python -m unittest discover test
 ```
 pip install coverage
 coverage run -m unittest discover test
+```
+
+### Example module
+
+```
+class CredsHandler(GladiusHandler):
+
+    patterns = ['*']
+
+    def process(self, event):
+        with open(event.src_path, 'r') as f:
+            data = f.read().split('\n')
+
+        # Perform work on data
+```
+
+
+Add yourself to the handlers list
+```
+handlers = [(ResponderHandler, config.get('Responder', 'watch_path')),
+            (CredsHandler, ResponderHandler().outpath),
+            (PentestlyHandler, CredsHandler().outpath)]
 ```

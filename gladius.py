@@ -163,7 +163,7 @@ class ResponderHandler(GladiusHandler):
     Watch for new hash files and run hashcat against them
     """
 
-    patterns = ["*NTLM*.txt"]
+    patterns = ["*NTLM*.txt", "*hashdump*"]
     
     # Add to this list to add new hashcat crack types
     # NOTE: If the type isn't NTLM, be sure to add a regex pattern to patterns
