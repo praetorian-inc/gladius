@@ -170,6 +170,7 @@ class ResponderHandler(GladiusHandler):
     types = [
                 ('ntlmv1', '5500'),
                 ('ntlmv2', '5600'),
+                ('hashdump', '1000'),
             ]
 
     cache = set()
