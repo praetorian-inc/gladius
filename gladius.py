@@ -15,14 +15,31 @@ from distutils.spawn import find_executable
 
 from ConfigParser import SafeConfigParser
 
+import argparse
+
 config = SafeConfigParser()
 config.read('config.ini')
 
 project_dir = config.get("Project", "project_path")
 
 verbosity = False
+art = True
 
 Cred = namedtuple('Cred', ['domain', 'username', 'password'])
+
+colors = {
+'normal'         : "\x1b[0m",
+'black'          : "\x1b[30m",
+'red'            : "\x1b[31m",
+'green'          : "\x1b[32m",
+'yellow'         : "\x1b[33m",
+'blue'           : "\x1b[34m",
+'purple'         : "\x1b[35m",
+'cyan'           : "\x1b[36m",
+'grey'           : "\x1b[90m",
+'gray'           : "\x1b[90m",
+'bold'           : "\x1b[1m"
+}
 
 ################################################################################
 # Helper functions
@@ -35,6 +52,18 @@ def find_file(filename):
             if file == filename:
                 return os.path.join(root, file)
 
+def get_sword_art():
+    with open('gladius.ascii', 'r') as f:
+        data = f.read()
+
+    return data
+
+def create_sword(creds, sword_color='red', cred_color='green'):
+    sword = color(get_sword_art(), color=sword_color)
+    creds = str(creds)
+    sword = sword.replace('LEN', '-' * len(creds))
+    sword = sword.replace('CRED', colors[cred_color] + creds + colors[sword_color])
+    return sword
 
 def color(string, color='', graphic=''):
     """
@@ -47,19 +76,6 @@ def color(string, color='', graphic=''):
         graphic (str): Graphic to append to the beginning of the line
     """
 
-    colors = {
-    'normal'         : "\x1b[0m",
-    'black'          : "\x1b[30m",
-    'red'            : "\x1b[31m",
-    'green'          : "\x1b[32m",
-    'yellow'         : "\x1b[33m",
-    'blue'           : "\x1b[34m",
-    'purple'         : "\x1b[35m",
-    'cyan'           : "\x1b[36m",
-    'grey'           : "\x1b[90m",
-    'gray'           : "\x1b[90m",
-    'bold'           : "\x1b[1m"
-    }
 
     if not color:
         if string.startswith("[!] "): 
@@ -273,7 +289,11 @@ class CredsHandler(GladiusHandler):
             line = line.split(':')
             try:
                 cred = '{} {} {}'.format(line[2], line[0], line[-1])
-                success("New creds: {}".format(cred))
+                if art:
+                    print create_sword(cred)
+                else:
+                    success("New creds: {}".format(cred))
+
                 outfile.write(cred + '\n')
             except IndexError:
                 pass
@@ -295,6 +315,7 @@ run
 load get_domain_admin_names
 run
 load mimikatz
+set source query SELECT username,password,domain,host FROM pentestly_creds WHERE execute='True' and username='{}'
 set lhost {}
 run
 load reporting/csv
@@ -325,7 +346,7 @@ run
             # Write Pentestly resource script to junkfile
             lhost = config.get("Mimikatz", "lhost")
             curr_template = self.template.format(config.get('Pentestly', 'nmap'), cred.domain,
-                                                 cred.username, cred.password,
+                                                 cred.username, cred.password, cred.username,
                                                  lhost, self.get_outfile().name)
             verbose(curr_template)
             junk.write(curr_template)
@@ -372,9 +393,13 @@ class AdminHandler(GladiusHandler):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action="store_true", default=False, help="Increased output verbosity")
+    parser.add_argument('--no-art', action="store_true", default=False, help="Increased output verbosity")
     args = parser.parse_args()
 
     verbosity = args.verbose
+    if args.no_art:
+        print color('Awe, no swords? Okay, fine..', color='yellow')
+        art = False
 
     handlers = [(ResponderHandler, config.get('Responder', 'watch_path')),
                 (CredsHandler, ResponderHandler().outpath)]
