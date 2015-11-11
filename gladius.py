@@ -393,7 +393,7 @@ class AdminHandler(GladiusHandler):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action="store_true", default=False, help="Increased output verbosity")
-    parser.add_argument('--no-art', action="store_true", default=False, help="Increased output verbosity")
+    parser.add_argument('--no-art', action="store_true", default=False, help="Disable the sword ascii art for displaying credentials and default to only text.")
     args = parser.parse_args()
 
     verbosity = args.verbose
