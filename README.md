@@ -15,6 +15,7 @@ python gladius.py
 ```
 #### Note: By running Gladius, you agree to the Hashcat EULA.
 
+### Help
 ```
 $ python gladius.py -h
 usage: gladius.py [-h] [-v] [--responder-dir RESPONDER_DIR]
@@ -35,6 +36,12 @@ optional arguments:
 ```
 
 ### Workings
+
+#### Ruleset
+
+The default ruleset is a better best64 ruleset from Julian Dunning (hob0) of Praetorian. His presentation on the topic can be found below:
+
+[![Picture to Youtube](https://img.youtube.com/vi/Bw7DSG0svgs/0.jpg)](https://www.youtube.com/watch?v=Bw7DSG0svgs)
 
 #### Responder
 
