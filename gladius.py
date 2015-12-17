@@ -10,9 +10,6 @@ import datetime
 from collections import namedtuple
 from collections import defaultdict
 
-from multiprocessing import Process
-from distutils.spawn import find_executable
-
 try:
     from watchdog.observers import Observer
     from watchdog.events import PatternMatchingEventHandler
@@ -85,13 +82,6 @@ def get_cracked_stats():
     result = "({}/{} {}%)".format(total_cracked, total_hashes, percentage)
     return result
 
-def find_file(filename):
-    """Find a particular file on disk"""
-    for root, dirs, files in os.walk('/'):
-        for file in files:
-            if file == filename:
-                return os.path.join(root, file)
-
 def get_sword_art():
     with open('gladius.ascii', 'r') as f:
         data = f.read()
@@ -137,24 +127,31 @@ def color(string, color='', graphic=''):
         return string + colors['normal']
 
 def output(string):
+    """Simply print a string"""
     print color(string)
 
 def success(string):
+    """Print a green string"""
     print color(string, color="green", graphic='[+] ')
 
 def warning(string):
+    """Print a yellow string"""
     print color(string, color="yellow", graphic='[*] ')
 
 def error(string):
+    """Print a red string"""
     print color(string, color="red", graphic='[!] ')
 
 def info(string):
+    """Print a blue string"""
     print color(string, color="blue", graphic='[-] ')
 
 def debug(string):
+    """Print a purple string"""
     print color(string, color="purple", graphic='[.] ')
 
 def verbose(string):
+    """Print a cyan string, only in verbose mode"""
     if verbosity:
         print color(string, color="cyan", graphic='[.] ')
 

@@ -39,7 +39,7 @@ optional arguments:
 
 #### Ruleset
 
-The default ruleset is a better best64 ruleset from Julian Dunning (hob0) of Praetorian. His presentation on the topic can be found below:
+The default ruleset is a better best64 ruleset from Julian Dunning (@hob0man) of Praetorian. His presentation on the topic can be found below:
 
 [![Picture to Youtube](https://img.youtube.com/vi/Bw7DSG0svgs/0.jpg)](https://www.youtube.com/watch?v=Bw7DSG0svgs)
 
