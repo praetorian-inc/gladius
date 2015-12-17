@@ -46,6 +46,27 @@ ntlm_hashes = defaultdict(dict)
 # Helper functions
 ################################################################################
 
+def print_banner():
+    with open('banner.txt', 'r') as f:
+        data = f.read()
+
+    """
+    for line in data.split('\n'):
+        if 'Author' in line or 'Present' in line:
+            data = data.replace(line, color(line, 'red'))
+
+    for words, c in [('@CoryDuplantis', 'yellow'), 
+                     ('Cory Duplantis', 'yellow'), 
+                     ('Praetorian', 'yellow')]:
+        data = data.replace(words, color(words, c))
+    """
+
+    data = data.replace('R', colors['red'])
+    data = data.replace('Y', colors['yellow'])
+    data = data.replace('B', colors['blue'])
+
+    print(data)
+
 def get_cracked_stats():
     total_hashes = len(ntlm_hashes)
 
@@ -61,7 +82,8 @@ def get_cracked_stats():
     total_cracked = len(cracked_hashes)
     # total_cracked = len([hash for hash in ntlm_hashes if ntlm_hashes[hash]['password']])
     percentage = "{:.2f}".format(((total_cracked * 1.0) / total_hashes)*100)
-    return total_cracked, total_hashes, percentage
+    result = "({}/{} {}%)".format(total_cracked, total_hashes, percentage)
+    return result
 
 def find_file(filename):
     """Find a particular file on disk"""
@@ -261,6 +283,7 @@ class ResponderHandler(GladiusHandler):
                     hash_type = curr_type
 
                 if 'hashdump' in event.src_path:
+                    # Handle smart_hashdump output
                     hash_type = curr_type
                     if line.count(':') != 3:
                         continue
@@ -280,7 +303,7 @@ class ResponderHandler(GladiusHandler):
                         ntlm_hashes[hash]['password'] = ''
 
                     if username not in ntlm_hashes[hash]['users']:
-                        info("New hash to crack 2: {}:{}".format(username, hash))
+                        info("New hash to crack: {}:{}".format(username, hash))
                         ntlm_hashes[hash]['users'].append(username)
 
                 elif curr_hash.lower() in event.src_path.lower():
@@ -314,10 +337,11 @@ class CredsHandler(GladiusHandler):
                     # Already cracked it
                     continue
 
-                total_cracked, total_hashes, percent = get_cracked_stats()
+                cracked_stats = get_cracked_stats()
                 usernames = ', '.join(ntlm_hashes[hash]['users'])
                 crack_time = datetime.datetime.now() - ntlm_hashes[hash]['time']
-                cred = '[{} ({}/{} {}%)] {} : {}'.format(crack_time, total_cracked, total_hashes, percent, usernames, password)
+
+                cred = '[{}] {} {} : {}'.format(crack_time, cracked_stats, usernames, password)
                 success("New creds: {}".format(cred))
                 ntlm_hashes[line[0]]['password'] = password
             else:
@@ -346,7 +370,7 @@ if __name__ == '__main__':
 
     for curr_arg in [args.hashcat, args.ruleset, args.wordlist]:
         if not os.path.exists(curr_arg):
-            warning("Argument not found: {}. Please sure the file exists.".format(curr_arg))
+            warning("Argument not found: {}. Ensure the file exists.".format(curr_arg))
             exit(1)
 
     verbosity = args.verbose
@@ -354,6 +378,10 @@ if __name__ == '__main__':
         print color('Awe, no swords? Okay, fine..', color='yellow')
         art = False
 
+    print_banner()
+
+    # Add more handlers to this list.
+    # (Handler, watch directory)
     handlers = [(ResponderHandler, args.responder_dir),
                 (CredsHandler, ResponderHandler().outpath)]
 
