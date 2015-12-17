@@ -54,14 +54,18 @@ Domain Username Password
 
 ### Example module
 
+To extend Gladius:
+* Create a new Handler class that inherits from `GladiusHandler`. 
+* Add a list of regex matches for your specific file names (or `'*'` if the filename doesn't matter)
+* Create a `process()` function to perform actions on all files matching your pattern.
+
 ```
-class CredsHandler(GladiusHandler):
+class YourHandler(GladiusHandler):
 
     patterns = ['*']
 
     def process(self, event):
-        with open(event.src_path, 'r') as f:
-            data = f.read().split('\n')
+        line = self.get_lines(event)
 
         # Perform work on data
 ```
@@ -71,5 +75,7 @@ Add yourself to the handlers list
 ```
 handlers = [(ResponderHandler, args.responder,
             (CredsHandler, ResponderHandler().outpath),
-            (PentestlyHandler, CredsHandler().outpath)]
+            (YourHandler, CredsHandler().outpath),
+            (YourHandler, '/tmp'),
+            ]
 ```
