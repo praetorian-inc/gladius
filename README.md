@@ -6,7 +6,7 @@
 ### Install
 ```
 pip install watchdog
-git clone https://git.praetorianlabs.com/thebarbershopper/gladius
+git clone https://www.github.com/praetorianlabs/gladius
 ```
 
 ### Start
