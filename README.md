@@ -65,7 +65,7 @@ class YourHandler(GladiusHandler):
     patterns = ['*']
 
     def process(self, event):
-        line = self.get_lines(event)
+        data = self.get_lines(event)
 
         # Perform work on data
 ```
