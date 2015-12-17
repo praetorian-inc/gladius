@@ -81,9 +81,10 @@ class YourHandler(GladiusHandler):
 
 Add yourself to the handlers list
 ```
-handlers = [(ResponderHandler, args.responder,
+handlers = [
+            (ResponderHandler, args.responder,
             (CredsHandler, ResponderHandler().outpath),
             (YourHandler, CredsHandler().outpath),
             (YourHandler, '/tmp'),
-            ]
+           ]
 ```
