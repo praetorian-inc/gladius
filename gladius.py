@@ -5,27 +5,20 @@ import subprocess
 import argparse
 import struct
 import md5
+import datetime
 
 from collections import namedtuple
+from collections import defaultdict
 
 from multiprocessing import Process
 from distutils.spawn import find_executable
 
-from ConfigParser import SafeConfigParser
-
-import argparse
-
 try:
     from watchdog.observers import Observer
-    from watchdog.events import PatternMatchingEventHandler  
+    from watchdog.events import PatternMatchingEventHandler
 except ImportError:
     raise Exception("Watchdog is needed for Gladius: pip install watchdog.")
     exit(0)
-
-config = SafeConfigParser()
-config.read('config.ini')
-
-project_dir = config.get("Project", "project_path")
 
 verbosity = False
 art = True
@@ -33,22 +26,42 @@ art = True
 Cred = namedtuple('Cred', ['domain', 'username', 'password'])
 
 colors = {
-'normal'         : "\x1b[0m",
-'black'          : "\x1b[30m",
-'red'            : "\x1b[31m",
-'green'          : "\x1b[32m",
-'yellow'         : "\x1b[33m",
-'blue'           : "\x1b[34m",
-'purple'         : "\x1b[35m",
-'cyan'           : "\x1b[36m",
-'grey'           : "\x1b[90m",
-'gray'           : "\x1b[90m",
-'bold'           : "\x1b[1m"
+    'normal'         : "\x1b[0m",
+    'black'          : "\x1b[30m",
+    'red'            : "\x1b[31m",
+    'green'          : "\x1b[32m",
+    'yellow'         : "\x1b[33m",
+    'blue'           : "\x1b[34m",
+    'purple'         : "\x1b[35m",
+    'cyan'           : "\x1b[36m",
+    'grey'           : "\x1b[90m",
+    'gray'           : "\x1b[90m",
+    'bold'           : "\x1b[1m"
 }
+
+ntlm_hashes = defaultdict(dict)
+
 
 ################################################################################
 # Helper functions
 ################################################################################
+
+def get_cracked_stats():
+    total_hashes = len(ntlm_hashes)
+
+    total_hashes = []
+    for hash in ntlm_hashes:
+        total_hashes.extend(ntlm_hashes[hash]['users'])
+    total_hashes = len(total_hashes)
+
+    cracked_hashes = []
+    for hash in ntlm_hashes:
+        if ntlm_hashes[hash]['password']:
+            cracked_hashes.extend(ntlm_hashes[hash]['users'])
+    total_cracked = len(cracked_hashes)
+    # total_cracked = len([hash for hash in ntlm_hashes if ntlm_hashes[hash]['password']])
+    percentage = "{:.2f}".format(((total_cracked * 1.0) / total_hashes)*100)
+    return total_cracked, total_hashes, percentage
 
 def find_file(filename):
     """Find a particular file on disk"""
@@ -83,11 +96,11 @@ def color(string, color='', graphic=''):
 
 
     if not color:
-        if string.startswith("[!] "): 
+        if string.startswith("[!] "):
             color = 'red'
-        elif string.startswith("[+] "): 
+        elif string.startswith("[+] "):
             color = 'green'
-        elif string.startswith("[*] "): 
+        elif string.startswith("[*] "):
             color = 'blue'
         else:
             color = 'normal'
@@ -138,8 +151,8 @@ class GladiusHandler(PatternMatchingEventHandler):
 
     def __init__(self):
         self.cache = []
-        self.outpath = os.path.join(project_dir, "{}_out".format(self.__class__.__name__.lower()))
-        self.junkpath = os.path.join(project_dir, "junk")
+        self.outpath = os.path.join('engagement', "{}_out".format(self.__class__.__name__.lower()))
+        self.junkpath = os.path.join('engagement', "junk")
 
         if not os.path.exists(self.outpath):
             os.makedirs(self.outpath)
@@ -193,7 +206,7 @@ class ResponderHandler(GladiusHandler):
     """
 
     patterns = ["*NTLM*.txt", "*hashdump*"]
-    
+
     # Add to this list to add new hashcat crack types
     # NOTE: If the type isn't NTLM, be sure to add a regex pattern to patterns
     types = [
@@ -211,32 +224,10 @@ class ResponderHandler(GladiusHandler):
         with open(eula, 'w') as f:
             f.write('1\0\0\0')
 
-    def get_configs(self):
-        hashcat = config.get('Responder', 'hashcat')
-        ruleset = config.get('Responder', 'ruleset')
-        wordlist = config.get('Responder', 'wordlist')
-
-        if not hashcat:
-            error("Please set hashcat in the config.ini")
-            return
-
-        if not ruleset:
-            error("Please set ruleset in the config.ini")
-            return
-
-        if not wordlist:
-            error("Please set wordlist in the config.ini")
-            return
-
-        return hashcat, ruleset, wordlist
-
     def call_hashcat(self, hash_num, hashes):
         """Run hashcat against a list of hashes"""
 
-        try:
-            hashcat, ruleset, wordlist = self.get_configs()
-        except ValueError:
-            return
+        hashcat, ruleset, wordlist = args.hashcat, args.ruleset, args.wordlist
 
         self.accept_eula(hashcat)
 
@@ -269,7 +260,30 @@ class ResponderHandler(GladiusHandler):
                 if hash_type == 0:
                     hash_type = curr_type
 
-                if curr_hash.lower() in event.src_path.lower():
+                if 'hashdump' in event.src_path:
+                    hash_type = curr_type
+                    if line.count(':') != 3:
+                        continue
+                    if '$' in line:
+                        continue
+
+                    line = line.replace('\x1b[1m\x1b[32m[+]\x1b[0m \t', '')
+                    username, _, _, hash = line.split(':')
+
+                    if hash not in new_hashes:
+                        new_hashes.append(hash)
+
+
+                    if hash not in ntlm_hashes:
+                        ntlm_hashes[hash]['time'] = datetime.datetime.now()
+                        ntlm_hashes[hash]['users'] = []
+                        ntlm_hashes[hash]['password'] = ''
+
+                    if username not in ntlm_hashes[hash]['users']:
+                        info("New hash to crack 2: {}:{}".format(username, hash))
+                        ntlm_hashes[hash]['users'].append(username)
+
+                elif curr_hash.lower() in event.src_path.lower():
                     hash_type = curr_type
                     info("New hash to crack: {}".format(line))
                     new_hashes.append(line)
@@ -292,29 +306,55 @@ class CredsHandler(GladiusHandler):
         for line in data:
             verbose("Creds: {}".format(line))
             line = line.split(':')
-            try:
-                cred = '{} {} {}'.format(line[2], line[0], line[-1])
+            if len(line) == 2:
+                hash, password = line
+                if not line[1]:
+                    continue
+                if ntlm_hashes[hash]['password']:
+                    # Already cracked it
+                    continue
+
+                total_cracked, total_hashes, percent = get_cracked_stats()
+                usernames = ', '.join(ntlm_hashes[hash]['users'])
+                crack_time = datetime.datetime.now() - ntlm_hashes[hash]['time']
+                cred = '[{} ({}/{} {}%)] {} : {}'.format(crack_time, total_cracked, total_hashes, percent, usernames, password)
+                success("New creds: {}".format(cred))
+                ntlm_hashes[line[0]]['password'] = password
+            else:
+                try:
+                    cred = '{} {} {}'.format(line[2], line[0], line[-1])
+                except IndexError:
+                    continue
+
                 if art:
                     print create_sword(cred)
                 else:
                     success("New creds: {}".format(cred))
 
-                outfile.write(cred + '\n')
-            except IndexError:
-                pass
+
+            outfile.write(cred + '\n')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action="store_true", default=False, help="Increased output verbosity")
+    parser.add_argument('--responder-dir', default="/usr/share/responder", help="Directory to watch for Responder output")
+    parser.add_argument('--hashcat', default="/usr/share/hashcat/hashcat.bin", help="Path to hashcat binary")
+    parser.add_argument('-r', '--ruleset', default="hob064.rule", help="Ruleset to use with hashcat")
+    parser.add_argument('-w', '--wordlist', default="/usr/share/wordlists/rockyou.txt", help="Wordlist to use with hashcat")
     parser.add_argument('--no-art', action="store_true", default=False, help="Disable the sword ascii art for displaying credentials and default to only text.")
     args = parser.parse_args()
+
+    for curr_arg in [args.hashcat, args.ruleset, args.wordlist]:
+        if not os.path.exists(curr_arg):
+            warning("Argument not found: {}. Please sure the file exists.".format(curr_arg))
+            exit(1)
 
     verbosity = args.verbose
     if args.no_art:
         print color('Awe, no swords? Okay, fine..', color='yellow')
         art = False
 
-    handlers = [(ResponderHandler, config.get('Responder', 'watch_path')),
+    handlers = [(ResponderHandler, args.responder_dir),
                 (CredsHandler, ResponderHandler().outpath)]
 
     observer = Observer()
@@ -337,4 +377,3 @@ if __name__ == '__main__':
         observer.stop()
 
     observer.join()
-
