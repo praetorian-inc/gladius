@@ -13,6 +13,7 @@ git clone https://www.github.com/praetorianlabs/gladius
 ```
 python gladius.py
 ```
+#### Note: By running Gladius, you agree to the Hashcat EULA.
 
 ```
 $ python gladius.py -h
