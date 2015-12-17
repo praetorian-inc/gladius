@@ -1,7 +1,7 @@
 # Gladius
 ## Easy mode from Responder to Credentials
 
-[![asciicast](https://asciinema.org/a/0l8hlq0jt6bstvqnfw51c58lo.png)](https://asciinema.org/a/0l8hlq0jt6bstvqnfw51c58lo)
+[![asciicast](https://asciinema.org/a/77yqou5omy7ubrrqzjkut8sw7.png)](https://asciinema.org/a/77yqou5omy7ubrrqzjkut8sw7)
 
 ### Install
 ```

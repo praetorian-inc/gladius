@@ -1,11 +1,11 @@
-import time
-import tempfile
-import os
-import subprocess
 import argparse
-import struct
-import md5
 import datetime
+import md5
+import os
+import struct
+import subprocess
+import tempfile
+import time
 
 from collections import namedtuple
 from collections import defaultdict
@@ -46,17 +46,6 @@ ntlm_hashes = defaultdict(dict)
 def print_banner():
     with open('banner.txt', 'r') as f:
         data = f.read()
-
-    """
-    for line in data.split('\n'):
-        if 'Author' in line or 'Present' in line:
-            data = data.replace(line, color(line, 'red'))
-
-    for words, c in [('@CoryDuplantis', 'yellow'), 
-                     ('Cory Duplantis', 'yellow'), 
-                     ('Praetorian', 'yellow')]:
-        data = data.replace(words, color(words, c))
-    """
 
     data = data.replace('R', colors['red'])
     data = data.replace('Y', colors['yellow'])
@@ -282,17 +271,20 @@ class ResponderHandler(GladiusHandler):
                 if 'hashdump' in event.src_path:
                     # Handle smart_hashdump output
                     hash_type = curr_type
-                    if line.count(':') != 3:
+                
+                    # Check for hashdump output
+                    if line.count(':') != 6:
                         continue
+
+                    # Ignore service accounts
                     if '$' in line:
                         continue
 
-                    line = line.replace('\x1b[1m\x1b[32m[+]\x1b[0m \t', '')
-                    username, _, _, hash = line.split(':')
+                    username = line.split(':')[0]
+                    hash = line.split(':')[3]
 
                     if hash not in new_hashes:
                         new_hashes.append(hash)
-
 
                     if hash not in ntlm_hashes:
                         ntlm_hashes[hash]['time'] = datetime.datetime.now()
@@ -380,6 +372,7 @@ if __name__ == '__main__':
     # Add more handlers to this list.
     # (Handler, watch directory)
     handlers = [(ResponderHandler, args.responder_dir),
+                (ResponderHandler, '/root/.msf4/loot'),
                 (CredsHandler, ResponderHandler().outpath)]
 
     observer = Observer()
