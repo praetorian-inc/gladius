@@ -372,8 +372,14 @@ if __name__ == '__main__':
     # Add more handlers to this list.
     # (Handler, watch directory)
     handlers = [(ResponderHandler, args.responder_dir),
-                (ResponderHandler, '/root/.msf4/loot'),
                 (CredsHandler, ResponderHandler().outpath)]
+
+    # Listen for all .msf folders
+    for msf in [name for name in os.listdir('/root') if 'msf' in name]:
+        handlers.append((ResponderHandler, os.path.join('/root', msf)))
+
+    print handlers
+
 
     observer = Observer()
     observers = []
