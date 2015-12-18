@@ -1,11 +1,11 @@
-import argparse
-import datetime
-import md5
-import os
-import struct
-import subprocess
-import tempfile
 import time
+import tempfile
+import os
+import subprocess
+import argparse
+import struct
+import md5
+import datetime
 
 from collections import namedtuple
 from collections import defaultdict
@@ -37,7 +37,6 @@ colors = {
 }
 
 ntlm_hashes = defaultdict(dict)
-
 
 ################################################################################
 # Helper functions
@@ -116,31 +115,24 @@ def color(string, color='', graphic=''):
         return string + colors['normal']
 
 def output(string):
-    """Simply print a string"""
     print color(string)
 
 def success(string):
-    """Print a green string"""
     print color(string, color="green", graphic='[+] ')
 
 def warning(string):
-    """Print a yellow string"""
     print color(string, color="yellow", graphic='[*] ')
 
 def error(string):
-    """Print a red string"""
     print color(string, color="red", graphic='[!] ')
 
 def info(string):
-    """Print a blue string"""
     print color(string, color="blue", graphic='[-] ')
 
 def debug(string):
-    """Print a purple string"""
     print color(string, color="purple", graphic='[.] ')
 
 def verbose(string):
-    """Print a cyan string, only in verbose mode"""
     if verbosity:
         print color(string, color="cyan", graphic='[.] ')
 
@@ -213,14 +205,14 @@ class ResponderHandler(GladiusHandler):
     Watch for new hash files and run hashcat against them
     """
 
-    patterns = ["*NTLM*.txt", "*hashdump*"]
+    patterns = ["*NTLM*.txt", "*hashes*"]
 
     # Add to this list to add new hashcat crack types
     # NOTE: If the type isn't NTLM, be sure to add a regex pattern to patterns
     types = [
                 ('ntlmv1', '5500'),
                 ('ntlmv2', '5600'),
-                ('hashdump', '1000'),
+                ('hashes', '1000'),
             ]
 
     cache = set()
@@ -244,11 +236,11 @@ class ResponderHandler(GladiusHandler):
             temp.write(curr_hash + '\n')
         temp.close()
 
-        outfile = self.get_outfile()
+        outfile = self.get_outfile(suffix='ntlm')
 
         # Spawn hashcat
         command = [hashcat, '-m', hash_num, '-r', ruleset, '-o', outfile.name, temp.name, wordlist]
-        warning(' '.join([str(x) for x in command]))
+        verbose(' '.join([str(x) for x in command]))
         verbose("Hashcat command: {}".format([str(x) for x in command]))
         res = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -268,18 +260,20 @@ class ResponderHandler(GladiusHandler):
                 if hash_type == 0:
                     hash_type = curr_type
 
-                if 'hashdump' in event.src_path:
-                    # Handle smart_hashdump output
+                if 'hashes' in event.src_path:
+                    # Handle smart_hash output
                     hash_type = curr_type
-                
+
                     # Check for hashdump output
-                    if line.count(':') != 6:
+                    if line.count(':') != 3 and line.count(':') != 6:
                         continue
 
                     # Ignore service accounts
                     if '$' in line:
                         continue
 
+                    # If we receive spooled output, remove the color
+                    line = line.replace('\x1b[1m\x1b[32m[+]\x1b[0m \t', '')
                     username = line.split(':')[0]
                     hash = line.split(':')[3]
 
@@ -292,22 +286,161 @@ class ResponderHandler(GladiusHandler):
                         ntlm_hashes[hash]['password'] = ''
 
                     if username not in ntlm_hashes[hash]['users']:
-                        info("New hash to crack: {}:{}".format(username, hash))
+                        verbose("New hash to crack: {}:{}".format(username, hash))
                         ntlm_hashes[hash]['users'].append(username)
 
                 elif curr_hash.lower() in event.src_path.lower():
                     hash_type = curr_type
-                    info("New hash to crack: {}".format(line))
+                    verbose("New hash to crack: {}".format(line))
                     new_hashes.append(line)
 
         if new_hashes and hash_type != 0:
             self.call_hashcat(hash_type, new_hashes)
 
+class SecretsdumpHandler(GladiusHandler):
+    """
+    Watch for new secretsdump files and run john against them
+    """
+
+    patterns = ["*secretsdump*"]
+
+    cache = set()
+
+    john_counter = 0
+
+    def accept_eula(self, hashcat):
+        """Ensure we sign the EULA so that we don't have spinning hashcats"""
+
+        eula = os.path.join(os.path.dirname(hashcat), 'eula.accepted')
+        with open(eula, 'w') as f:
+            f.write('1\0\0\0')
+
+    def call_hashcat(self, hash_num, hashes):
+        """Run hashcat against a list of hashes"""
+
+        hashcat, ruleset, wordlist = args.hashcat, args.ruleset, args.wordlist
+
+        self.accept_eula(hashcat)
+
+        temp = self.get_junkfile()
+        for curr_hash in hashes:
+            temp.write(curr_hash + '\n')
+        temp.close()
+
+        outfile = self.get_outfile(suffix='ntlm')
+
+        # Spawn hashcat
+        command = [hashcat, '-m', hash_num, '-r', ruleset, '-o', outfile.name, temp.name, wordlist]
+        verbose(' '.join([str(x) for x in command]))
+        verbose("Hashcat command: {}".format([str(x) for x in command]))
+        res = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    def call_john(self, hashes):
+        """Run john against a list of cached hashes"""
+
+        wordlist = args.wordlist
+
+        temp = self.get_junkfile()
+        for curr_hash in hashes:
+            temp.write(curr_hash + '\n')
+        temp.close()
+
+        outfile = self.get_outfile(suffix='john')
+        junkfile = self.get_junkfile()
+
+        # Spawn hashcat
+        command = ['john', '--format=mscash2', 
+                           '--wordlist={}'.format(wordlist), 
+                           '--pot={}'.format(outfile.name), temp.name,
+                           '--session={}'.format(junkfile)] # Sesssion necessary to run multiple johns
+        self.john_counter += 1
+        verbose(' '.join([str(x) for x in command]))
+        verbose("John command: {}".format([str(x) for x in command]))
+        res = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    def process(self, event):
+        data = self.get_lines(event)
+
+        mode = ''
+        new_hashes = []
+        cached_hashes = []
+        sc_creds = []
+        defaults = []
+        for line in data:
+            verbose("Secretsdump: {}".format(line))
+            # Ignore blank lines
+            if not line:
+                continue
+
+            if 'Dumping local SAM hashes' in line:
+                mode = 'ntlm'
+                continue
+
+            if 'Dumping cached domain logon' in line:
+                self.call_hashcat(hash_num='1000', hashes=new_hashes)
+                mode = 'mscash'
+                continue
+
+            if 'Dumping LSA Secrets' in line:
+                # self.call_john(hashes=cached_hashes)
+                mode = ''
+                continue
+
+            if '_SC_' in line:
+                mode = 'sc'
+                continue
+
+            if 'DefaultPassword' in line:
+                mode = 'default'
+                continue
+            
+            if mode == 'default':
+                if line in defaults:
+                    continue
+                success("Default password: {}".format(line))
+                defaults.append(line)
+                mode = ''
+                continue
+
+            if mode == 'sc':
+                # Catch the '[*]' if it accidently goes by
+                if line in sc_creds or '[' in line:
+                    continue
+                outfile = self.get_outfile(suffix='sc_')
+                outfile.write(line + '\n')
+                success(line)
+                mode = ''
+                sc_creds.append(line)
+                continue
+
+            if mode == 'ntlm' and line.count(':') == 6:
+                username = line.split(':')[0]
+                hash = line.split(':')[3]
+
+                if hash not in new_hashes:
+                    new_hashes.append(hash)
+
+                if hash not in ntlm_hashes:
+                    ntlm_hashes[hash]['time'] = datetime.datetime.now()
+                    ntlm_hashes[hash]['users'] = []
+                    ntlm_hashes[hash]['password'] = ''
+
+                if username not in ntlm_hashes[hash]['users']:
+                    verbose("New hash to crack: {}:{}".format(username, hash))
+                    ntlm_hashes[hash]['users'].append(username)
+
+            if mode == 'mscash' and line.count(':') == 6:
+                user_pass = '#'.join(line.split(':')[:2])
+                curr_hash = '$DCC2$10240#{}'.format(user_pass)
+                verbose("New cache hash to crack: {}".format(user_pass))
+                if curr_hash not in cached_hashes:
+                    cached_hashes.append(curr_hash)
+
 class CredsHandler(GladiusHandler):
     """
     Watch for new hash files and run hashcat against them
     """
-    patterns = ['*']
+    patterns = ['*ntlm*']
 
     def process(self, event):
         with open(event.src_path, 'r') as f:
@@ -322,7 +455,7 @@ class CredsHandler(GladiusHandler):
                 hash, password = line
                 if not line[1]:
                     continue
-                if ntlm_hashes[hash]['password']:
+                if ntlm_hashes[hash].get('password', ''):
                     # Already cracked it
                     continue
 
@@ -344,6 +477,32 @@ class CredsHandler(GladiusHandler):
                 else:
                     success("New creds: {}".format(cred))
 
+
+            outfile.write(cred + '\n')
+
+class CashCredsHandler(GladiusHandler):
+    """
+    Watch for new cached hash files and extract password
+    """
+    patterns = ['*john*']
+
+    def process(self, event):
+        data = self.get_lines(event)
+        outfile = self.get_outfile()
+
+        for line in data:
+            verbose("Cached creds: {}".format(line))
+            try:
+                username = line.split('#')[1]
+                password = line.split(':')[1]
+            except IndexError:
+                continue
+
+            cred = '{} {}'.format(username, password)
+            if art:
+                print create_sword(cred)
+            else:
+                success("New creds: {}".format(cred))
 
             outfile.write(cred + '\n')
 
@@ -372,14 +531,14 @@ if __name__ == '__main__':
     # Add more handlers to this list.
     # (Handler, watch directory)
     handlers = [(ResponderHandler, args.responder_dir),
-                (CredsHandler, ResponderHandler().outpath)]
+                (CredsHandler, ResponderHandler().outpath),
+                (SecretsdumpHandler, args.responder_dir),
+                (CashCredsHandler, SecretsdumpHandler().outpath),
+                (CredsHandler, SecretsdumpHandler().outpath)]
 
-    # Listen for all .msf folders
+    # Listen for all .msf folders - .msf4 and .msf5
     for msf in [name for name in os.listdir('/root') if 'msf' in name]:
         handlers.append((ResponderHandler, os.path.join('/root', msf)))
-
-    print handlers
-
 
     observer = Observer()
     observers = []
