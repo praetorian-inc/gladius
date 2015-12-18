@@ -37,9 +37,10 @@ optional arguments:
 
 ### Working with secretsdump
 Sent results of secretsdump to Gladius for parsing and cracking.
+
 ```
 for ip in $(cat ips); do secretsdump.py DOMAIN/username:password@$ip > /usr/share/responder/secretsdump_$ip; done
-    ```
+```
 
 ### Workings
 
