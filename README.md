@@ -1,5 +1,6 @@
 # Gladius
 ## Easy mode from Responder to Credentials
+Author: Cory Duplantis (@ctfhacker) / [blog](www.ctfhacker.com)
 
 [![asciicast](https://asciinema.org/a/77yqou5omy7ubrrqzjkut8sw7.png)](https://asciinema.org/a/77yqou5omy7ubrrqzjkut8sw7)
 
