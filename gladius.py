@@ -539,6 +539,7 @@ if __name__ == '__main__':
         print color('''Current hashcat binary is out of date. 
 Please install the latest version: https://hashcat.net/hashcat/
 Add --hashcat to select the new binary.''', color='red')
+        exit(1)
 
     # Add more handlers to this list.
     # (Handler, watch directory)
