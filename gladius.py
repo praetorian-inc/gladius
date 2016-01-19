@@ -222,19 +222,21 @@ class ResponderHandler(GladiusHandler):
 
     cache = set()
 
+    '''
     def accept_eula(self, hashcat):
         """Ensure we sign the EULA so that we don't have spinning hashcats"""
 
         eula = os.path.join(os.path.dirname(hashcat), 'eula.accepted')
         with open(eula, 'w') as f:
             f.write('1\0\0\0')
+    '''
 
     def call_hashcat(self, hash_num, hashes):
         """Run hashcat against a list of hashes"""
 
         hashcat, ruleset, wordlist = args.hashcat, args.ruleset, args.wordlist
 
-        self.accept_eula(hashcat)
+        # self.accept_eula(hashcat)
 
         temp = self.get_junkfile()
         for curr_hash in hashes:
