@@ -536,7 +536,9 @@ if __name__ == '__main__':
     print_banner()
 
     if outdated_hashcat():
-        print color('Current hashcat binary is out of date. Please install the latest version: https://hashcat.net/hashcat/', color='red')
+        print color('''Current hashcat binary is out of date. 
+Please install the latest version: https://hashcat.net/hashcat/
+Add --hashcat to select the new binary.''', color='red')
 
     # Add more handlers to this list.
     # (Handler, watch directory)
