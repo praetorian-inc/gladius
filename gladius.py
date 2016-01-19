@@ -293,12 +293,12 @@ class ResponderHandler(GladiusHandler):
                         ntlm_hashes[hash]['password'] = ''
 
                     if username not in ntlm_hashes[hash]['users']:
-                        verbose("New hash to crack: {}:{}".format(username, hash))
+                        info("New hash to crack: {}:{}".format(username, hash))
                         ntlm_hashes[hash]['users'].append(username)
 
                 elif curr_hash.lower() in event.src_path.lower():
                     hash_type = curr_type
-                    verbose("New hash to crack: {}".format(line))
+                    info("New hash to crack: {}".format(line))
                     new_hashes.append(line)
 
         if new_hashes and hash_type != 0:
@@ -433,7 +433,7 @@ class SecretsdumpHandler(GladiusHandler):
                     ntlm_hashes[hash]['password'] = ''
 
                 if username not in ntlm_hashes[hash]['users']:
-                    verbose("New hash to crack: {}:{}".format(username, hash))
+                    info("New hash to crack: {}:{}".format(username, hash))
                     ntlm_hashes[hash]['users'].append(username)
 
             if mode == 'mscash' and line.count(':') == 6:
