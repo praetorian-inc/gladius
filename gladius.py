@@ -138,7 +138,7 @@ def verbose(string):
 
 def outdated_hashcat():
     import subprocess
-    proc = subprocess.Popen([args.hashcat], stderr=subprocess.PIPE)
+    proc = subprocess.Popen([args.hashcat], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return 'this copy of hashcat is outdated' in proc.communicate()[1]
 
 ################################################################################
