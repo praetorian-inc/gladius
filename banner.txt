@@ -1,4 +1,4 @@
-
+B
  ██████╗ ██╗      █████╗ ██████╗ ██╗██╗   ██╗███████╗
 ██╔════╝ ██║     ██╔══██╗██╔══██╗██║██║   ██║██╔════╝
 ██║  ███╗██║     ███████║██║  ██║██║██║   ██║███████╗
@@ -8,4 +8,4 @@
                                                        
 
 RPresented by:Y Praetorian (www.praetorian.com)
-RAuthor:Y Cory Duplantis (@CoryDuplantis) / www.ctfhacker.com
+RAuthor:Y Cory Duplantis (@ctfhacker) / www.ctfhacker.com

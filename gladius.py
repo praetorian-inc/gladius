@@ -136,6 +136,11 @@ def verbose(string):
     if verbosity:
         print color(string, color="cyan", graphic='[.] ')
 
+def outdated_hashcat():
+    import subprocess
+    proc = subprocess.Popen([args.hashcat], stderr=subprocess.PIPE)
+    return 'this copy of hashcat is outdated' in proc.communicate()[1]
+
 ################################################################################
 # Watchdog Handler classes
 ################################################################################
@@ -528,6 +533,9 @@ if __name__ == '__main__':
 
     print_banner()
 
+    if outdated_hashcat():
+        print color('Current hashcat binary is out of date. Please install the latest version: https://hashcat.net/hashcat/', color='red')
+
     # Add more handlers to this list.
     # (Handler, watch directory)
     handlers = [(ResponderHandler, args.responder_dir),
@@ -538,7 +546,7 @@ if __name__ == '__main__':
 
     # Listen for all .msf folders - .msf4 and .msf5
     for msf in [name for name in os.listdir('/root') if 'msf' in name]:
-        handlers.append((ResponderHandler, os.path.join('/root', msf)))
+        handlers.append((ResponderHandler, os.path.join('/root', msf, 'loot')))
 
     observer = Observer()
     observers = []
