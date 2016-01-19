@@ -3,6 +3,8 @@
 
 [![asciicast](https://asciinema.org/a/77yqou5omy7ubrrqzjkut8sw7.png)](https://asciinema.org/a/77yqou5omy7ubrrqzjkut8sw7)
 
+Gladius provided an automated method for cracking credentials from various sources during an engagement. We currently crack hashes from Responder, secretsdump.py, and smart_hashdump.
+
 ### Install
 ```
 pip install watchdog
@@ -13,7 +15,19 @@ git clone https://www.github.com/praetorianlabs/gladius
 ```
 python gladius.py
 ```
-#### Note: By running Gladius, you agree to the Hashcat EULA.
+
+Now start the responder session as normal
+```
+cd /usr/share/responder
+python Responder.py -i YOUR_IP -I YOUR_INTERFACE
+```
+
+### Working with secretsdump
+Send results of secretsdump to Gladius for parsing and cracking.
+
+```
+for ip in $(cat ips); do secretsdump.py DOMAIN/username:password@$ip > /usr/share/responder/secretsdump_$ip; done
+```
 
 ### Help
 ```
@@ -33,13 +47,6 @@ optional arguments:
                         Wordlist to use with hashcat
   --no-art              Disable the sword ascii art for displaying credentials
                         and default to only text.
-```
-
-### Working with secretsdump
-Send results of secretsdump to Gladius for parsing and cracking.
-
-```
-for ip in $(cat ips); do secretsdump.py DOMAIN/username:password@$ip > /usr/share/responder/secretsdump_$ip; done
 ```
 
 ### Workings
@@ -72,7 +79,7 @@ Domain Username Password
 To extend Gladius:
 * Create a new Handler class that inherits from `GladiusHandler`. 
 * Add a list of regex matches for your specific file names (or `'*'` if the filename doesn't matter)
-* Create a `process()` function to perform actions on all files matching your pattern.
+* Create a `process(self, event)` function to perform actions on all files matching your pattern.
 
 ```
 class YourHandler(GladiusHandler):
