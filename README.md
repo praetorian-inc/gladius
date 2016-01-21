@@ -4,7 +4,7 @@ Author: Cory Duplantis (@ctfhacker) / [blog](http://www.ctfhacker.com)
 
 [![asciicast](https://asciinema.org/a/77yqou5omy7ubrrqzjkut8sw7.png)](https://asciinema.org/a/77yqou5omy7ubrrqzjkut8sw7)
 
-Gladius provided an automated method for cracking credentials from various sources during an engagement. We currently crack hashes from Responder, secretsdump.py, and smart_hashdump.
+Gladius provides an automated method for cracking credentials from various sources during an engagement. We currently crack hashes from Responder, secretsdump.py, and smart_hashdump.
 
 ### Install
 ```
