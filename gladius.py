@@ -518,7 +518,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose', action="store_true", default=False, help="Increased output verbosity")
     parser.add_argument('--responder-dir', default="/usr/share/responder", help="Directory to watch for Responder output")
     parser.add_argument('--hashcat', default="/usr/share/hashcat/hashcat.bin", help="Path to hashcat binary")
-    parser.add_argument('-r', '--ruleset', default="hob064.rule", help="Ruleset to use with hashcat")
+    parser.add_argument('-r', '--ruleset', default="d3adhob0.rule", help="Ruleset to use with hashcat")
     parser.add_argument('-w', '--wordlist', default="/usr/share/wordlists/rockyou.txt", help="Wordlist to use with hashcat")
     parser.add_argument('--no-art', action="store_true", default=False, help="Disable the sword ascii art for displaying credentials and default to only text.")
     args = parser.parse_args()

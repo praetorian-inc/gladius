@@ -9,7 +9,11 @@ Gladius provides an automated method for cracking credentials from various sourc
 ### Install
 ```
 pip install watchdog
-git clone https://www.github.com/praetorianlabs/gladius
+git clone https://www.github.com/praetorian-inc/gladius
+cd gladius
+git clone https://www.github.com/praetorian-inc/Hob0Rules
+cp Hob0Rules/* .
+rm -rf Hob0Rules/
 ```
 
 ### Start
