@@ -550,8 +550,8 @@ Add --hashcat to select the new binary.''', color='red')
                 (CredsHandler, SecretsdumpHandler().outpath)]
 
     # Listen for all .msf folders - .msf4 and .msf5
-    for msf in [name for name in os.listdir('/root') if 'msf' in name]:
-        handlers.append((ResponderHandler, os.path.join('/root', msf, 'loot')))
+    for msf in [name for name in os.listdir(os.path.expanduser('~')) if 'msf' in name]:
+        handlers.append((ResponderHandler, os.path.join(os.path.expanduser('~'), msf, 'loot')))
 
     observer = Observer()
     observers = []
