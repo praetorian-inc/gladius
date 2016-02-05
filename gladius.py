@@ -560,6 +560,8 @@ Add --hashcat to select the new binary.''', color='red')
     observer = Observer()
     observers = []
 
+    color("Current rule list: {}".format(args.ruleset), color='green', graphic='[-] ')
+
     for handler, path in handlers:
         if not os.path.exists(path):
             os.makedirs(path)
