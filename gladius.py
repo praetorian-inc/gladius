@@ -297,6 +297,10 @@ class ResponderHandler(GladiusHandler):
                         ntlm_hashes[hash]['users'].append(username)
 
                 elif curr_hash.lower() in event.src_path.lower():
+                    # Ignore service accounts
+                    if '$' in line:
+                        continue
+
                     hash_type = curr_type
                     info("New hash to crack: {}".format(line))
                     new_hashes.append(line)
