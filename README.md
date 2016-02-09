@@ -2,6 +2,8 @@
 ## Easy mode from Responder to Credentials
 Author: Cory Duplantis (@ctfhacker) / [blog](http://www.ctfhacker.com)
 
+[Blog post on Gladius](https://www.praetorian.com/blog/gladius-automatic-responder-cracking)
+
 [![asciicast](https://asciinema.org/a/77yqou5omy7ubrrqzjkut8sw7.png)](https://asciinema.org/a/77yqou5omy7ubrrqzjkut8sw7)
 
 Gladius provides an automated method for cracking credentials from various sources during an engagement. We currently crack hashes from Responder, secretsdump.py, and smart_hashdump.
