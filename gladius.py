@@ -34,7 +34,7 @@ colors = {
     'cyan'           : "\x1b[36m",
     'grey'           : "\x1b[90m",
     'gray'           : "\x1b[90m",
-    'bold'           : "\x1b[1m"
+    'bold'           : "\x1b[1m",
 }
 
 ntlm_hashes = defaultdict(dict)
