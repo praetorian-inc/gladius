@@ -20,7 +20,7 @@ rm -rf Hob0Rules/
 
 ### Start
 ```
-python gladius.py
+python gladius.py --hashcat ../hashcat/hashcat-cli64.bin -r d3adhob0.rule -w rockyou.txt
 ```
 
 Now start the responder session as normal
